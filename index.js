@@ -11,13 +11,13 @@ const TOKEN = process.env.BOT_TOKEN;
 const TELEGRAM_API = `https://api.telegram.org/bot${TOKEN}`;
 
 // ======================
-// Dify配置（Render环境变量）
+// Dify 配置
 // ======================
 const DIFY_API_URL = process.env.DIFY_API_URL;
 const DIFY_API_KEY = process.env.DIFY_API_KEY;
 
 // ======================
-// webhook入口
+// Webhook
 // ======================
 app.post("/webhook", async (req, res) => {
     try {
@@ -30,16 +30,16 @@ app.post("/webhook", async (req, res) => {
         const chatId = message.chat.id;
         const text = message.text;
 
-        console.log("收到消息:", text);
+        console.log("📩 收到消息:", text);
 
         // ======================
-        // 🚀 调用 Dify（关键）
+        // 🚀 调用 Dify（工作流）
         // ======================
         const difyRes = await axios.post(
             DIFY_API_URL,
             {
                 inputs: {
-                    text: text
+                    text: text   // ⚠️ 这里必须和你Dify变量一致
                 },
                 response_mode: "blocking",
                 user: String(chatId)
@@ -52,16 +52,19 @@ app.post("/webhook", async (req, res) => {
             }
         );
 
+        console.log("🧠 Dify返回:", JSON.stringify(difyRes.data, null, 2));
+
         // ======================
-        // 🧠 解析返回
+        // 🧠 解析返回（兼容不同格式）
         // ======================
         let reply =
             difyRes.data.answer ||
             difyRes.data.data?.outputs?.text ||
-            "Dify没有返回内容";
+            difyRes.data.data?.outputs?.result ||
+            "⚠️ Dify没有返回有效内容";
 
         // ======================
-        // 📤 回传 Telegram
+        // 📤 回 Telegram
         // ======================
         await axios.post(`${TELEGRAM_API}/sendMessage`, {
             chat_id: chatId,
@@ -71,7 +74,17 @@ app.post("/webhook", async (req, res) => {
         res.sendStatus(200);
 
     } catch (err) {
-        console.log("错误:", err.response?.data || err.message);
+        console.log("❌ Dify错误完整信息:", JSON.stringify(err.response?.data, null, 2));
+        console.log("❌ 原始错误:", err.message);
+
+        // 防止Telegram无响应
+        try {
+            await axios.post(`${TELEGRAM_API}/sendMessage`, {
+                chat_id: req.body?.message?.chat?.id,
+                text: "⚠️ 系统错误，请查看日志"
+            });
+        } catch (e) {}
+
         res.sendStatus(200);
     }
 });
@@ -81,6 +94,7 @@ app.get("/", (req, res) => {
     res.send("Bot is running 🚀");
 });
 
+// ======================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log("Bot running on port", PORT);
