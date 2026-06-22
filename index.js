@@ -4,8 +4,8 @@ const axios = require("axios");
 const app = express();
 app.use(express.json());
 
-// 🔑 在这里填你的 Telegram Bot Token
-const TOKEN = "8780534518:AAGLKQKcRTkfmHt0LuH2lnFVSpq5AnfelP0";
+// 🔑 从环境变量读取（推荐安全方式）
+const TOKEN = process.env.BOT_TOKEN;
 const TELEGRAM_API = `https://api.telegram.org/bot${TOKEN}`;
 
 // 🤖 接收 Telegram 消息
@@ -22,10 +22,13 @@ app.post("/webhook", async (req, res) => {
 
         console.log("收到消息:", text);
 
-        // 🤖 简单回复逻辑（你可以以后改成AI）
+        // 🇨🇳 中文回复逻辑
+        const replyText = `🤖 我已经收到你的消息啦：\n\n👉 ${text}`;
+
         await axios.post(`${TELEGRAM_API}/sendMessage`, {
             chat_id: chatId,
-            text: "你刚刚说的是：" + text
+            text: replyText,
+            parse_mode: "HTML"
         });
 
         res.sendStatus(200);
@@ -35,12 +38,12 @@ app.post("/webhook", async (req, res) => {
     }
 });
 
-// 🌐 Render健康检查
+// 🌐 健康检查
 app.get("/", (req, res) => {
-    res.send("Bot is running 🚀");
+    res.send("机器人运行正常 🚀");
 });
 
-// ⚙️ Render必须用这个端口
+// ⚙️ Render端口
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log("Bot running on port", PORT);
